@@ -159,7 +159,7 @@
   <div style="margin-top:6px;"><span class="warn">リーチ</span>：あなた（黒）の石が<b>あと1マスでBINGO</b>になるラインは、盤面上で光って表示されます。</div>
   <div style="margin-top:6px;"><span class="warn">パスルール</span>：盤上に<b>空きマスがある</b>のに手番が指せる手が無い場合は <b>相手のターン</b>（自動パス）。</div>
   <div style="margin-top:6px;"><span class="warn">終局</span>：双方とも指せる手が無い（=両者の合法手が0）状態になったら<b>ゲームオーバー</b>。ただしその瞬間に⚡が残っていれば<b>稲妻で続行</b>できます。</div>
-  <div style="margin-top:6px;"><span class="warn">稲妻</span>：敵の駒をランダムに<b>3〜5個</b>破壊 → 破壊した敵駒の位置のどこかに<b>自駒を1個</b>ランダム再配置（<b>手番は消費しない / 自駒破壊コストなし</b> / 初期所持：黒1・白1）。</div>
+  <div style="margin-top:6px;"><span class="warn">稲妻</span>：敵の駒をランダムに<b>5個</b>破壊 → 破壊した<b>5箇所すべて</b>に<b>自駒を5個</b>再配置（<b>手番は消費しない / 自駒破壊コストなし</b> / 初期所持：黒1・白1）。</div>
   <div style="margin-top:6px;">操作：タップ＝着手 / <kbd>⚡稲妻</kbd>＝アイテム発動 / <kbd>リセット</kbd>＝初期化</div>
 </div>
 
@@ -305,10 +305,6 @@
       [arr[i],arr[j]] = [arr[j],arr[i]];
     }
     return arr;
-  }
-  function randRangeInt(min, max){
-    // inclusive
-    return min + randInt(Math.max(1, (max-min+1)));
   }
 
   function countEmpty(){
@@ -776,15 +772,28 @@
     resetBoardKeepScoreAndItems();
   }
 
-  // ===== lightning (no self-cost, destroy 3-5 enemies) =====
-  function ensureEnemyExistsForLightning(player){
+  // ===== lightning (no self-cost, destroy 5 enemies) =====
+  function ensureEnemiesForLightning(player, desiredCount){
     const enemy = opponent(player);
+    const enemyCells=[];
     const emptyCells=[];
-    for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(get(x,y)===EMPTY) emptyCells.push([x,y]);
-    if(emptyCells.length===0) return null;
-    const pos = emptyCells[randInt(emptyCells.length)];
-    set(pos[0], pos[1], enemy);
-    return pos;
+
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const cell = get(x,y);
+      if(cell===enemy) enemyCells.push([x,y]);
+      else if(cell===EMPTY) emptyCells.push([x,y]);
+    }
+
+    if(enemyCells.length===0 && emptyCells.length===0) return null;
+
+    shuffle(emptyCells);
+    while(enemyCells.length < desiredCount && emptyCells.length>0){
+      const pos = emptyCells.pop();
+      set(pos[0], pos[1], enemy);
+      enemyCells.push(pos);
+    }
+
+    return enemyCells;
   }
 
   async function useLightning(){
@@ -797,31 +806,22 @@
     if(!isBothNoMoves()) return;
     if(countItems(player)<=0) return;
 
-    const enemy = opponent(player);
-    const enemyCells=[];
-    for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(get(x,y)===enemy) enemyCells.push([x,y]);
-
     state.busy = true;
     try{
-      if(enemyCells.length===0){
-        const injected = ensureEnemyExistsForLightning(player);
-        if(!injected) return;
-        enemyCells.push(injected);
-      }
+      const enemyCells = ensureEnemiesForLightning(player, 5);
+      if(!enemyCells || enemyCells.length===0) return;
 
       decItem(player);
 
       shuffle(enemyCells);
-      const want = randRangeInt(3,5);
-      const destroyed = enemyCells.slice(0, Math.min(want, enemyCells.length));
+      const destroyed = enemyCells.slice(0, Math.min(5, enemyCells.length));
+      if(destroyed.length===0) return;
 
       spawnLightningAnim(destroyed);
       await sleep(110);
 
       for(const [x,y] of destroyed) set(x,y,EMPTY);
-
-      const target = destroyed[randInt(destroyed.length)];
-      set(target[0], target[1], player);
+      for(const [x,y] of destroyed) set(x,y,player);
 
       await resolveAfterChange(player);
 
@@ -1403,10 +1403,10 @@
 
     clearBoard();
     set(3,3,B); set(4,4,B);
-    set(0,0,EMPTY);
-    const injected = ensureEnemyExistsForLightning(B);
-    assert(!!injected, 'enemy=0 lightning should inject an enemy if an empty exists');
-    assert(countBy(W)>=1, 'after injection there should be an enemy stone');
+    const injected = ensureEnemiesForLightning(B, 5);
+    assert(!!injected, 'enemy=0 lightning should inject enemies if empties exist');
+    assert(injected.length===5, 'lightning prep should create 5 enemy stones when possible');
+    assert(countBy(W)===5, 'after injection there should be exactly 5 enemy stones');
 
     console.log('%cAll tests passed','color:#8fdd98');
   }
