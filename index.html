@@ -1395,12 +1395,19 @@
     const reachNoLegal = computeReachFor(B);
     assert(reachNoLegal.defs.length===0 && reachNoLegal.empties.length===0,
       'reach should not highlight cells where the move is illegal');
+    clearBoard();
+    set(2,2,B);
+    set(3,2,B);
+    set(4,2,W);
+    set(5,2,EMPTY);
+    set(6,2,B);
     state.turn = W;
     recomputeReach();
     assert(state.reach.defs.length===0 && state.reach.empties.length===0, 'reach highlights should hide during CPU turn');
     state.turn = B;
     recomputeReach();
     assert(state.reach.defs.some(d=>d.kind==='row' && d.idx===2), 'reach highlights should reappear on player turn');
+    assert(state.reach.empties.some(e=>e.x===5 && e.y===2), 'reach should highlight the legal empty cell when it is the player turn');
 
     clearBoard();
     for(let y=0;y<N;y++) set(3,y,B);
