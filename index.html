@@ -388,6 +388,7 @@
     if(empties>0){
       state.turn = opponent(state.turn);
       computeLegal();
+      recomputeReach();
     }
   }
 
@@ -457,7 +458,13 @@
     return {defs, empties};
   }
 
-  function recomputeReach(){ state.reach = computeReachFor(B); }
+  function recomputeReach(){
+    if(state.turn===B){
+      state.reach = computeReachFor(B);
+    } else {
+      state.reach = {defs: [], empties: []};
+    }
+  }
 
   // ===== deletion rules =====
   function findDeletions(){
@@ -683,6 +690,7 @@
     if(oppHas){
       state.turn = opp;
       computeLegal();
+      recomputeReach();
       syncHud();
       if(state.mode==='cpu' && state.turn===W){
         toast('CPUが⚡稲妻を使った！');
@@ -1335,6 +1343,12 @@
     const reach = computeReachFor(B);
     assert(reach.defs.some(d=>d.kind==='row' && d.idx===2), 'reach should detect a row reach');
     assert(reach.empties.some(e=>e.x===5 && e.y===2), 'reach should include the empty cell');
+    state.turn = W;
+    recomputeReach();
+    assert(state.reach.defs.length===0 && state.reach.empties.length===0, 'reach highlights should hide during CPU turn');
+    state.turn = B;
+    recomputeReach();
+    assert(state.reach.defs.some(d=>d.kind==='row' && d.idx===2), 'reach highlights should reappear on player turn');
 
     clearBoard();
     set(3,3,B); set(4,4,B);
