@@ -459,11 +459,11 @@
   }
 
   function recomputeReach(){
-    if(state.turn===B){
-      state.reach = computeReachFor(B);
-    } else {
+    if(state.gameOver){
       state.reach = {defs: [], empties: []};
+      return;
     }
+    state.reach = computeReachFor(state.turn);
   }
 
   // ===== deletion rules =====
