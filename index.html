@@ -397,6 +397,21 @@
     const enemy = opponent(player);
     const defs=[];
     const empties=[];
+    const defSet = new Set();
+    const emptySet = new Set();
+
+    const addReach = (def, empty) => {
+      const dk = `${def.kind}:${def.idx}`;
+      if(!defSet.has(dk)){
+        defs.push(def);
+        defSet.add(dk);
+      }
+      const ek = key(empty.x, empty.y);
+      if(!emptySet.has(ek)){
+        empties.push(empty);
+        emptySet.add(ek);
+      }
+    };
 
     for(let y=0;y<N;y++){
       let pc=0, ec=0, bad=false; let ex=-1;
@@ -407,8 +422,7 @@
         else if(s===EMPTY){ ec++; ex=x; }
       }
       if(!bad && pc===N-1 && ec===1){
-        defs.push({kind:'row', idx:y});
-        empties.push({x:ex, y, kind:'row', idx:y});
+        addReach({kind:'row', idx:y}, {x:ex, y, kind:'row', idx:y});
       }
     }
 
@@ -421,8 +435,7 @@
         else if(s===EMPTY){ ec++; ey=y; }
       }
       if(!bad && pc===N-1 && ec===1){
-        defs.push({kind:'col', idx:x});
-        empties.push({x, y:ey, kind:'col', idx:x});
+        addReach({kind:'col', idx:x}, {x, y:ey, kind:'col', idx:x});
       }
     }
 
@@ -435,8 +448,7 @@
         else if(s===EMPTY){ ec++; ei=i; }
       }
       if(!bad && pc===N-1 && ec===1){
-        defs.push({kind:'diag', idx:0});
-        empties.push({x:ei, y:ei, kind:'diag', idx:0});
+        addReach({kind:'diag', idx:0}, {x:ei, y:ei, kind:'diag', idx:0});
       }
     }
 
@@ -450,8 +462,39 @@
         else if(s===EMPTY){ ec++; ei=i; }
       }
       if(!bad && pc===N-1 && ec===1){
-        defs.push({kind:'diag', idx:1});
-        empties.push({x:N-1-ei, y:ei, kind:'diag', idx:1});
+        addReach({kind:'diag', idx:1}, {x:N-1-ei, y:ei, kind:'diag', idx:1});
+      }
+    }
+
+    // also detect bingo that will form after a legal move (enemy stones flipped)
+    const legal = computeLegalFor(player);
+    const lineFullAfterMove = (cells, moveSet) => {
+      for(const [x,y] of cells){
+        const k = key(x,y);
+        const s = get(x,y);
+        if(s===player || moveSet.has(k)) continue;
+        return false;
+      }
+      return true;
+    };
+
+    for(const kk of legal){
+      const [mx,my] = kk.split(',').map(Number);
+      const flips = collectFlips(mx,my,player);
+      const moveSet = new Set([kk]);
+      for(const [fx,fy] of flips) moveSet.add(key(fx,fy));
+
+      const checks = [
+        {kind:'row', idx:my, cells: Array.from({length:N}, (_,i)=>[i,my])},
+        {kind:'col', idx:mx, cells: Array.from({length:N}, (_,i)=>[mx,i])},
+      ];
+      if(mx===my) checks.push({kind:'diag', idx:0, cells: Array.from({length:N}, (_,i)=>[i,i])});
+      if(mx===N-1-my) checks.push({kind:'diag', idx:1, cells: Array.from({length:N}, (_,i)=>[N-1-i,i])});
+
+      for(const c of checks){
+        if(lineFullAfterMove(c.cells, moveSet)){
+          addReach({kind:c.kind, idx:c.idx}, {x:mx, y:my, kind:c.kind, idx:c.idx});
+        }
       }
     }
 
@@ -1349,6 +1392,14 @@
     state.turn = B;
     recomputeReach();
     assert(state.reach.defs.some(d=>d.kind==='row' && d.idx===2), 'reach highlights should reappear on player turn');
+
+    clearBoard();
+    for(let y=0;y<N;y++) set(3,y,B);
+    set(3,1,EMPTY);
+    set(3,2,W);
+    const reachWithFlip = computeReachFor(B);
+    assert(reachWithFlip.empties.some(e=>e.x===3 && e.y===1 && e.kind==='col' && e.idx===3),
+      'reach should count a column that becomes bingo after flipping an enemy stone');
 
     clearBoard();
     set(3,3,B); set(4,4,B);
