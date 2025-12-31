@@ -82,6 +82,9 @@ describe('ゲームロジック', () => {
     clearBoard();
     for (let x = 0; x < N; x++) setCell(state, x, 2, B);
     setCell(state, 5, 2, EMPTY);
+    // (5,2) を合法手にするための挟み込み用駒
+    setCell(state, 5, 3, W);
+    setCell(state, 5, 4, B);
     const reach = computeReachFor(state, B);
     assert.ok(reach.defs.some((d) => d.kind === 'row' && d.idx === 2));
     assert.ok(reach.empties.some((e) => e.x === 5 && e.y === 2));

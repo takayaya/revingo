@@ -150,8 +150,10 @@ export function computeReachFor(state, player) {
   const empties = [];
   const defSet = new Set();
   const emptySet = new Set();
+  const legal = computeLegalFor(state, player);
 
   const addReach = (def, empty) => {
+    if (!legal.has(key(empty.x, empty.y))) return;
     const dk = `${def.kind}:${def.idx}`;
     if (!defSet.has(dk)) {
       defs.push(def);
@@ -254,7 +256,6 @@ export function computeReachFor(state, player) {
     }
   }
 
-  const legal = computeLegalFor(state, player);
   const lineFullAfterMove = (cells, moveSet) => {
     for (const [x, y] of cells) {
       const k = key(x, y);
