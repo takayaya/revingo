@@ -84,7 +84,13 @@ function simulateMove(state, player, x, y) {
 }
 
 function countOwned(simState, player) {
-  return countBy(simState, player);
+  let count = 0;
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      if (getCell(simState, x, y) === player) count++;
+    }
+  }
+  return count;
 }
 
 function countOwnedCorners(simState, player) {
