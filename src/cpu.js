@@ -136,10 +136,7 @@ function moveImmediateScore(ctx, params, preBlackReach, randomFn) {
   const reachDelta = (preBlackReach ?? 0) - reachAfter.defs.length;
   const reachScore = reachDelta * params.reachBlockWeight;
 
-  const bingoScore =
-    (ctx.resolved.lines || 0) *
-    params.bingoBonus *
-    (ctx.player === W ? 1 : -1);
+  const bingoScore = (ctx.resolved.lines || 0) * params.bingoBonus;
 
   const jitter = (randomFn() - 0.5) * params.randomness;
 
