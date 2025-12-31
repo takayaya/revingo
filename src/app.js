@@ -72,8 +72,8 @@ import {
       bingo: 'rgba(255,255,255,0.92)',
       bingoGlow: 'rgba(120,255,235,0.75)',
       stones: {
-        1: { main: '#000000', edge: '#0aa3b3', hi: 'rgba(255,255,255,0.80)', glow: 'rgba(24,230,255,0.80)' },
-        2: { main: '#ffffff', edge: '#b80e98', hi: 'rgba(255,255,255,0.72)', glow: 'rgba(255,43,214,0.75)' },
+        1: { main: '#03101d', edge: '#19e8ff', hi: 'rgba(170,255,255,0.80)', glow: 'rgba(24,230,255,0.92)', core: '#24ffff' },
+        2: { main: '#fdf6ff', edge: '#ff58d9', hi: 'rgba(255,255,255,0.82)', glow: 'rgba(255,84,226,0.9)', core: '#ffd7ff' },
       },
     },
     classic: {
@@ -609,6 +609,7 @@ import {
     const th = THEMES[state.theme] || THEMES.neon;
     const c = th.stones[player];
     if (!c) return;
+    const isNeon = state.theme === 'neon';
 
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
@@ -619,7 +620,7 @@ import {
     const edgeRadius = r * 0.98;
 
     // ネオンは縁取りのグローだけ影を付け、塗りつぶしは影なしで純粋な色を出す
-    if (state.theme === 'neon') {
+    if (isNeon) {
       ctx.save();
       ctx.shadowColor = c.glow;
       ctx.shadowBlur = r * 0.9;
@@ -635,7 +636,15 @@ import {
     }
 
     // 中心色（影なしでクッキリ表示）
-    ctx.fillStyle = c.main;
+    if (isNeon && c.core) {
+      const grad = ctx.createRadialGradient(px - r * 0.1, py - r * 0.1, r * 0.12, px, py, r * 0.94);
+      grad.addColorStop(0, c.core);
+      grad.addColorStop(0.4, c.main);
+      grad.addColorStop(1, c.main);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = c.main;
+    }
     ctx.beginPath();
     ctx.arc(px, py, r * 0.9, 0, Math.PI * 2);
     ctx.fill();
