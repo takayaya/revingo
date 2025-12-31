@@ -22,6 +22,7 @@ export function createState() {
     itemB: 1,
     itemW: 1,
     mode: 'cpu',
+    difficulty: 'normal',
     theme: 'neon',
     legal: new Set(),
     lastMove: null,

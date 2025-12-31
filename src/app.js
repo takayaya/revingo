@@ -8,7 +8,9 @@ import {
   collectFlips,
   computeLegal,
   isBothNoMoves,
+  computeReachFor,
   countItems,
+  countBy,
   decItem,
   updateTurnAndPassIfNeeded,
   recomputeReach,
@@ -35,6 +37,7 @@ import {
   const titlePill = document.getElementById('titlePill');
 
   const modeSel = document.getElementById('modeSel');
+  const diffSel = document.getElementById('diffSel');
   const themeSel = document.getElementById('themeSel');
   const lightningBtn = document.getElementById('lightningBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -379,6 +382,7 @@ import {
   // ===== reset =====
   function resetGameUi() {
     state.mode = modeSel.value || 'cpu';
+    state.difficulty = diffSel.value || 'normal';
     state.theme = themeSel.value || 'neon';
     state.anims.length = 0;
     state.shake = 0;
@@ -492,6 +496,49 @@ import {
     return flips.length * 1.0 + corners + edge;
   }
 
+  function simulateWhiteOutcome(x, y, flips) {
+    const originalBoard = state.board;
+    const tempBoard = state.board.map((row) => row.slice());
+    state.board = tempBoard;
+
+    set(x, y, W);
+    for (const [fx, fy] of flips) set(fx, fy, W);
+
+    const delInfo = findDeletions(state);
+    let whiteLines = 0;
+    for (const d of delInfo.defs) {
+      const coord =
+        d.kind === 'row'
+          ? [0, d.idx]
+          : d.kind === 'col'
+          ? [d.idx, 0]
+          : d.kind === 'diag' && d.idx === 0
+          ? [0, 0]
+          : [N - 1, 0];
+      if (getCell(state, coord[0], coord[1]) === W) whiteLines++;
+    }
+
+    const whiteCount = countBy(state, W);
+    const blackCount = countBy(state, B);
+
+    state.board = originalBoard;
+    return { whiteLines, whiteCount, blackCount };
+  }
+
+  function evaluateMoveHard(x, y, flips, oppReach) {
+    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? 4.0 : 0;
+    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? 0.4 : 0;
+    const base = flips.length * 1.2 + corners + edge;
+
+    const blocksReach = oppReach?.empties?.some((e) => e.x === x && e.y === y) ? 6 : 0;
+
+    const outcome = simulateWhiteOutcome(x, y, flips);
+    const bingoBonus = outcome.whiteLines * 12;
+    const dominance = (outcome.whiteCount - outcome.blackCount) * 0.06;
+
+    return base + blocksReach + bingoBonus + dominance;
+  }
+
   function cpuStep() {
     if (state.busy || state.gameOver || state.awaitingChoice) return;
     if (state.turn !== W) return;
@@ -515,11 +562,15 @@ import {
       return;
     }
 
+    const oppReach = computeReachFor(state, B);
     let best = null;
     for (const kk of state.legal) {
       const [mx, my] = kk.split(',').map(Number);
       const flips = collectFlips(state, mx, my, W);
-      const score = evaluateMove(mx, my, flips);
+      const score =
+        state.difficulty === 'hard'
+          ? evaluateMoveHard(mx, my, flips, oppReach)
+          : evaluateMove(mx, my, flips);
       if (!best || score > best.score) best = { x: mx, y: my, score };
     }
     if (best) placeMove(best.x, best.y);
@@ -539,17 +590,23 @@ import {
 
     const canUse = !state.busy && !state.gameOver && !state.awaitingChoice && countItems(state, state.turn) > 0 && isBothNoMoves(state);
     lightningBtn.disabled = !canUse;
+    if (diffSel) diffSel.disabled = state.mode !== 'cpu';
   }
 
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme && THEMES[savedTheme]) state.theme = savedTheme;
   themeSel.value = state.theme;
   modeSel.value = 'cpu';
+  diffSel.value = 'normal';
 
   themeSel.addEventListener('change', () => {
     state.theme = themeSel.value;
     localStorage.setItem('theme', state.theme);
     syncHud();
+  });
+
+  diffSel.addEventListener('change', () => {
+    state.difficulty = diffSel.value || 'normal';
   });
 
   modeSel.addEventListener('change', () => {
