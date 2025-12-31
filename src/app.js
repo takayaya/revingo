@@ -615,29 +615,42 @@ import {
     ctx.ellipse(px + r * 0.12, py + r * 0.16, r * 1.05, r * 0.92, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    const edgeWidth = Math.max(1, r * 0.18);
+    const edgeRadius = r * 0.98;
+
+    // ネオンは縁取りのグローだけ影を付け、塗りつぶしは影なしで純粋な色を出す
     if (state.theme === 'neon') {
       ctx.save();
       ctx.shadowColor = c.glow;
       ctx.shadowBlur = r * 0.9;
+
+      // グロー付きの枠線
+      ctx.strokeStyle = c.edge;
+      ctx.lineWidth = edgeWidth;
+      ctx.beginPath();
+      ctx.arc(px, py, edgeRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
     }
 
+    // 中心色（影なしでクッキリ表示）
     ctx.fillStyle = c.main;
     ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.arc(px, py, r * 0.9, 0, Math.PI * 2);
     ctx.fill();
 
+    // 縁取り（影の有無に関わらず安定したラインを重ねる）
     ctx.strokeStyle = c.edge;
-    ctx.lineWidth = Math.max(1, r * 0.18);
+    ctx.lineWidth = edgeWidth;
     ctx.beginPath();
-    ctx.arc(px, py, r * 0.98, 0, Math.PI * 2);
+    ctx.arc(px, py, edgeRadius, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.fillStyle = c.hi;
     ctx.beginPath();
     ctx.ellipse(px - r * 0.35, py - r * 0.38, r * 0.55, r * 0.32, -0.4, 0, Math.PI * 2);
     ctx.fill();
-
-    if (state.theme === 'neon') ctx.restore();
   }
 
   function draw() {
