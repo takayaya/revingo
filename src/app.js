@@ -496,6 +496,51 @@ import {
     return flips.length * 1.0 + corners + edge;
   }
 
+  function simulateEasyOutcome(x, y, flips) {
+    const originalBoard = state.board;
+    const tempBoard = state.board.map((row) => row.slice());
+    state.board = tempBoard;
+
+    set(x, y, W);
+    for (const [fx, fy] of flips) set(fx, fy, W);
+
+    const delInfo = findDeletions(state);
+    let whiteLines = 0;
+    for (const d of delInfo.defs) {
+      const coord =
+        d.kind === 'row'
+          ? [0, d.idx]
+          : d.kind === 'col'
+          ? [d.idx, 0]
+          : d.kind === 'diag' && d.idx === 0
+          ? [0, 0]
+          : [N - 1, 0];
+      if (getCell(state, coord[0], coord[1]) === W) whiteLines++;
+    }
+
+    const blackReach = computeReachFor(state, B);
+
+    state.board = originalBoard;
+    return { whiteLines, blackReach };
+  }
+
+  function evaluateMoveEasy(x, y, flips, playerReach) {
+    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? -6.0 : 0;
+    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? -2.0 : 0;
+    const base = corners + edge - flips.length * 0.6;
+
+    const inPlayerReach = playerReach?.empties?.some((e) => e.x === x && e.y === y);
+
+    const outcome = simulateEasyOutcome(x, y, flips);
+    const reachChange = (outcome.blackReach?.defs?.length || 0) - (playerReach?.defs?.length || 0);
+
+    const avoidWhiteBingo = -30 * outcome.whiteLines;
+    const avoidBlockingPlayer = inPlayerReach ? -12 : 0;
+    const supportPlayer = reachChange * 8;
+
+    return base + avoidWhiteBingo + avoidBlockingPlayer + supportPlayer;
+  }
+
   function simulateWhiteOutcome(x, y, flips) {
     const originalBoard = state.board;
     const tempBoard = state.board.map((row) => row.slice());
@@ -562,14 +607,16 @@ import {
       return;
     }
 
-    const oppReach = computeReachFor(state, B);
+    const blackReach = computeReachFor(state, B);
     let best = null;
     for (const kk of state.legal) {
       const [mx, my] = kk.split(',').map(Number);
       const flips = collectFlips(state, mx, my, W);
       const score =
         state.difficulty === 'hard'
-          ? evaluateMoveHard(mx, my, flips, oppReach)
+          ? evaluateMoveHard(mx, my, flips, blackReach)
+          : state.difficulty === 'easy'
+          ? evaluateMoveEasy(mx, my, flips, blackReach)
           : evaluateMove(mx, my, flips);
       if (!best || score > best.score) best = { x: mx, y: my, score };
     }
