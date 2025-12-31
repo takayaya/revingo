@@ -145,4 +145,18 @@ describe('ゲームロジック', () => {
     const move = chooseCpuMove(state, { random: () => 0 });
     assert.deepEqual(move, { x: 0, y: 0 });
   });
+
+  it('CPU(HARD)が角の優先度を考慮しビームサーチとアルファベータ枝刈りを使用すること', () => {
+    clearBoard();
+    setCell(state, 1, 0, B);
+    setCell(state, 2, 0, W);
+    setCell(state, 2, 2, W);
+    setCell(state, 1, 1, B);
+    state.turn = W;
+    state.difficulty = 'hard';
+    computeLegal(state);
+
+    const move = chooseCpuMove(state, { random: () => 0 });
+    assert.deepEqual(move, { x: 0, y: 0 });
+  });
 });
