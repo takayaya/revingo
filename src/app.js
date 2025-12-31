@@ -18,8 +18,6 @@ import {
   addScore,
   comboGain,
   ensureEnemiesForLightning,
-  computeReachFor,
-  countBy,
   key,
   setCell,
   getCell,
