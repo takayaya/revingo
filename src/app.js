@@ -525,20 +525,21 @@ import {
   }
 
   function evaluateMoveEasy(x, y, flips, playerReach) {
-    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? -6.0 : 0;
-    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? -2.0 : 0;
-    const base = corners + edge - flips.length * 0.6;
+    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? -12.0 : 0;
+    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? -4.0 : 0;
+    const base = corners + edge - flips.length * 1.0;
 
     const inPlayerReach = playerReach?.empties?.some((e) => e.x === x && e.y === y);
 
     const outcome = simulateEasyOutcome(x, y, flips);
     const reachChange = (outcome.blackReach?.defs?.length || 0) - (playerReach?.defs?.length || 0);
 
-    const avoidWhiteBingo = -30 * outcome.whiteLines;
-    const avoidBlockingPlayer = inPlayerReach ? -12 : 0;
-    const supportPlayer = reachChange * 8;
+    const avoidWhiteBingo = -45 * outcome.whiteLines;
+    const avoidBlockingPlayer = inPlayerReach ? -18 : 0;
+    const supportPlayer = reachChange * 14;
+    const encourageLowFlips = flips.length >= 6 ? -8 : 0;
 
-    return base + avoidWhiteBingo + avoidBlockingPlayer + supportPlayer;
+    return base + avoidWhiteBingo + avoidBlockingPlayer + supportPlayer + encourageLowFlips;
   }
 
   function simulateWhiteOutcome(x, y, flips) {
@@ -571,15 +572,15 @@ import {
   }
 
   function evaluateMoveHard(x, y, flips, oppReach) {
-    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? 4.0 : 0;
-    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? 0.4 : 0;
-    const base = flips.length * 1.2 + corners + edge;
+    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? 6.0 : 0;
+    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? 1.0 : 0;
+    const base = flips.length * 1.4 + corners + edge;
 
-    const blocksReach = oppReach?.empties?.some((e) => e.x === x && e.y === y) ? 6 : 0;
+    const blocksReach = oppReach?.empties?.some((e) => e.x === x && e.y === y) ? 10 : 0;
 
     const outcome = simulateWhiteOutcome(x, y, flips);
-    const bingoBonus = outcome.whiteLines * 12;
-    const dominance = (outcome.whiteCount - outcome.blackCount) * 0.06;
+    const bingoBonus = outcome.whiteLines * 18;
+    const dominance = (outcome.whiteCount - outcome.blackCount) * 0.12;
 
     return base + blocksReach + bingoBonus + dominance;
   }
