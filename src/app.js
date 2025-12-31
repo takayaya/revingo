@@ -72,8 +72,8 @@ import {
       bingo: 'rgba(255,255,255,0.92)',
       bingoGlow: 'rgba(120,255,235,0.75)',
       stones: {
-        1: { main: '#18e6ff', edge: '#0aa3b3', hi: 'rgba(255,255,255,0.80)', glow: 'rgba(24,230,255,0.80)' },
-        2: { main: '#ff2bd6', edge: '#b80e98', hi: 'rgba(255,255,255,0.72)', glow: 'rgba(255,43,214,0.75)' },
+        1: { main: '#000000', edge: '#0aa3b3', hi: 'rgba(255,255,255,0.80)', glow: 'rgba(24,230,255,0.80)' },
+        2: { main: '#ffffff', edge: '#b80e98', hi: 'rgba(255,255,255,0.72)', glow: 'rgba(255,43,214,0.75)' },
       },
     },
     classic: {
