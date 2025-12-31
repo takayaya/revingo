@@ -8,9 +8,7 @@ import {
   collectFlips,
   computeLegal,
   isBothNoMoves,
-  computeReachFor,
   countItems,
-  countBy,
   decItem,
   updateTurnAndPassIfNeeded,
   recomputeReach,
@@ -24,6 +22,7 @@ import {
   shuffle,
   resetGame as resetGameState,
 } from './gameLogic.js';
+import { chooseCpuMove } from './cpu.js';
 
 (() => {
   // ===== DOM =====
@@ -489,102 +488,6 @@ import {
     })();
   }
 
-  // ===== CPU =====
-  function evaluateMove(x, y, flips) {
-    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? 3.0 : 0;
-    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? 0.25 : 0;
-    return flips.length * 1.0 + corners + edge;
-  }
-
-  function simulateEasyOutcome(x, y, flips) {
-    const originalBoard = state.board;
-    const tempBoard = state.board.map((row) => row.slice());
-    state.board = tempBoard;
-
-    set(x, y, W);
-    for (const [fx, fy] of flips) set(fx, fy, W);
-
-    const delInfo = findDeletions(state);
-    let whiteLines = 0;
-    for (const d of delInfo.defs) {
-      const coord =
-        d.kind === 'row'
-          ? [0, d.idx]
-          : d.kind === 'col'
-          ? [d.idx, 0]
-          : d.kind === 'diag' && d.idx === 0
-          ? [0, 0]
-          : [N - 1, 0];
-      if (getCell(state, coord[0], coord[1]) === W) whiteLines++;
-    }
-
-    const blackReach = computeReachFor(state, B);
-
-    state.board = originalBoard;
-    return { whiteLines, blackReach };
-  }
-
-  function evaluateMoveEasy(x, y, flips, playerReach) {
-    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? -12.0 : 0;
-    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? -4.0 : 0;
-    const base = corners + edge - flips.length * 1.0;
-
-    const inPlayerReach = playerReach?.empties?.some((e) => e.x === x && e.y === y);
-
-    const outcome = simulateEasyOutcome(x, y, flips);
-    const reachChange = (outcome.blackReach?.defs?.length || 0) - (playerReach?.defs?.length || 0);
-
-    const avoidWhiteBingo = -45 * outcome.whiteLines;
-    const avoidBlockingPlayer = inPlayerReach ? -18 : 0;
-    const supportPlayer = reachChange * 14;
-    const encourageLowFlips = flips.length >= 6 ? -8 : 0;
-
-    return base + avoidWhiteBingo + avoidBlockingPlayer + supportPlayer + encourageLowFlips;
-  }
-
-  function simulateWhiteOutcome(x, y, flips) {
-    const originalBoard = state.board;
-    const tempBoard = state.board.map((row) => row.slice());
-    state.board = tempBoard;
-
-    set(x, y, W);
-    for (const [fx, fy] of flips) set(fx, fy, W);
-
-    const delInfo = findDeletions(state);
-    let whiteLines = 0;
-    for (const d of delInfo.defs) {
-      const coord =
-        d.kind === 'row'
-          ? [0, d.idx]
-          : d.kind === 'col'
-          ? [d.idx, 0]
-          : d.kind === 'diag' && d.idx === 0
-          ? [0, 0]
-          : [N - 1, 0];
-      if (getCell(state, coord[0], coord[1]) === W) whiteLines++;
-    }
-
-    const whiteCount = countBy(state, W);
-    const blackCount = countBy(state, B);
-
-    state.board = originalBoard;
-    return { whiteLines, whiteCount, blackCount };
-  }
-
-  function evaluateMoveHard(x, y, flips, oppReach) {
-    const corners = (x === 0 && y === 0) || (x === 7 && y === 0) || (x === 0 && y === 7) || (x === 7 && y === 7) ? 6.0 : 0;
-    const edge = x === 0 || x === 7 || y === 0 || y === 7 ? 1.0 : 0;
-    const base = flips.length * 1.4 + corners + edge;
-
-    const blocksReach = oppReach?.empties?.some((e) => e.x === x && e.y === y) ? 10 : 0;
-
-    const outcome = simulateWhiteOutcome(x, y, flips);
-    const bingoBonus = outcome.whiteLines * 18;
-    const dominance = (outcome.whiteCount - outcome.blackCount) * 0.12;
-
-    return base + blocksReach + bingoBonus + dominance;
-  }
-
   function cpuStep() {
     if (state.busy || state.gameOver || state.awaitingChoice) return;
     if (state.turn !== W) return;
@@ -608,19 +511,7 @@ import {
       return;
     }
 
-    const blackReach = computeReachFor(state, B);
-    let best = null;
-    for (const kk of state.legal) {
-      const [mx, my] = kk.split(',').map(Number);
-      const flips = collectFlips(state, mx, my, W);
-      const score =
-        state.difficulty === 'hard'
-          ? evaluateMoveHard(mx, my, flips, blackReach)
-          : state.difficulty === 'easy'
-          ? evaluateMoveEasy(mx, my, flips, blackReach)
-          : evaluateMove(mx, my, flips);
-      if (!best || score > best.score) best = { x: mx, y: my, score };
-    }
+    const best = chooseCpuMove(state);
     if (best) placeMove(best.x, best.y);
   }
 

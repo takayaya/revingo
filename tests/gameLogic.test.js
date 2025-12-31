@@ -16,6 +16,7 @@ import {
   ensureEnemiesForLightning,
   findDeletions,
 } from '../src/gameLogic.js';
+import { chooseCpuMove } from '../src/cpu.js';
 
 let state;
 
@@ -116,5 +117,46 @@ describe('ゲームロジック', () => {
     assert.ok(injected);
     assert.equal(injected.length, 5);
     assert.equal(countBy(W), 5);
+  });
+
+  it('CPU(EASY)がランダム性を持ち危険手を避けること', () => {
+    resetGame(state);
+    state.turn = W;
+    state.difficulty = 'easy';
+    computeLegal(state);
+
+    const choiceA = chooseCpuMove(state, { random: () => 0.01 });
+    const choiceB = chooseCpuMove(state, { random: () => 0.99 });
+    assert.ok(choiceA);
+    assert.ok(choiceB);
+    assert.notDeepEqual(choiceA, choiceB);
+  });
+
+  it('CPU(NORMAL)が角の優先度を考慮すること', () => {
+    clearBoard();
+    setCell(state, 1, 0, B);
+    setCell(state, 2, 0, W);
+    setCell(state, 2, 2, W);
+    setCell(state, 1, 1, B);
+    state.turn = W;
+    state.difficulty = 'normal';
+    computeLegal(state);
+
+    const move = chooseCpuMove(state, { random: () => 0 });
+    assert.deepEqual(move, { x: 0, y: 0 });
+  });
+
+  it('CPU(HARD)が角の優先度を考慮しビームサーチとアルファベータ枝刈りを使用すること', () => {
+    clearBoard();
+    setCell(state, 1, 0, B);
+    setCell(state, 2, 0, W);
+    setCell(state, 2, 2, W);
+    setCell(state, 1, 1, B);
+    state.turn = W;
+    state.difficulty = 'hard';
+    computeLegal(state);
+
+    const move = chooseCpuMove(state, { random: () => 0 });
+    assert.deepEqual(move, { x: 0, y: 0 });
   });
 });
