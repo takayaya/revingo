@@ -505,6 +505,8 @@ import { chooseCpuMove } from './cpu.js';
     const target = get(x, y);
     if (target !== opponent(player)) {
       toast('相手の駒を選んでください');
+      state.reverseMode = false;
+      syncHud();
       return;
     }
     if (countReverseItems(state, player) <= 0) {
