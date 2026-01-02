@@ -10,6 +10,9 @@ import {
   isBothNoMoves,
   countItems,
   decItem,
+  countReverseItems,
+  decReverseItem,
+  addReverseItem,
   updateTurnAndPassIfNeeded,
   recomputeReach,
   findDeletions,
@@ -21,6 +24,7 @@ import {
   getCell,
   shuffle,
   resetGame as resetGameState,
+  inBounds,
 } from './gameLogic.js';
 import { chooseCpuMove } from './cpu.js';
 
@@ -33,6 +37,7 @@ import { chooseCpuMove } from './cpu.js';
   const scorePill = document.getElementById('scorePill');
   const diffPill = document.getElementById('diffPill');
   const itemPill = document.getElementById('itemPill');
+  const reversePill = document.getElementById('reversePill');
   const titlePill = document.getElementById('titlePill');
 
   const modeSel = document.getElementById('modeSel');
@@ -52,9 +57,11 @@ import { chooseCpuMove } from './cpu.js';
   const rules = document.getElementById('rules');
   const rulesBtn = document.getElementById('rulesBtn');
   const rulesClose = document.getElementById('rulesClose');
+  const reverseBtn = document.getElementById('reverseBtn');
 
   // ===== state =====
   const state = createState();
+  state.reverseMode = false;
   const get = (x, y) => getCell(state, x, y);
   const set = (x, y, v) => setCell(state, x, y, v);
 
@@ -297,6 +304,9 @@ import { chooseCpuMove } from './cpu.js';
       }
 
       const gain = comboGain(cells.length, delInfo.lines);
+      if (delInfo.lines > 0) {
+        addReverseItem(state, scoringPlayer, delInfo.lines);
+      }
       spawnDeleteAnim(cells, gain, delInfo.lines, delInfo.defs);
       await sleep(130);
 
@@ -390,6 +400,7 @@ import { chooseCpuMove } from './cpu.js';
     state.awaitingChoice = false;
     state.toastTimer = null;
     state.gameOver = false;
+    state.reverseMode = false;
 
     resetGameState(state);
     recomputeReachAndHud();
@@ -452,9 +463,87 @@ import { chooseCpuMove } from './cpu.js';
   }
 
   // ===== moves =====
+  function collectFlipsFromOccupied(x, y, player) {
+    const opp = opponent(player);
+    const flips = [];
+
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ]) {
+      let cx = x + dx,
+        cy = y + dy;
+      const line = [];
+      while (inBounds(cx, cy)) {
+        const s = get(cx, cy);
+        if (s === opp) {
+          line.push([cx, cy]);
+          cx += dx;
+          cy += dy;
+          continue;
+        }
+        if (s === player) {
+          if (line.length) flips.push(...line);
+        }
+        break;
+      }
+    }
+    return flips;
+  }
+
+  async function applyReverseAt(x, y) {
+    if (state.busy || state.gameOver || state.awaitingChoice) return;
+    if (!state.reverseMode) return;
+
+    const player = state.turn;
+    const target = get(x, y);
+    if (target !== opponent(player)) {
+      toast('相手の駒を選んでください');
+      return;
+    }
+    if (countReverseItems(state, player) <= 0) {
+      state.reverseMode = false;
+      syncHud();
+      return;
+    }
+
+    state.busy = true;
+    state.reverseMode = false;
+    try {
+      decReverseItem(state, player);
+      set(x, y, player);
+      const flips = collectFlipsFromOccupied(x, y, player);
+      for (const [fx, fy] of flips) set(fx, fy, player);
+      state.lastMove = { x, y, player, flips: flips.length, reverse: true };
+
+      await resolveAfterChange(player);
+
+      state.turn = opponent(state.turn);
+      computeLegalAndReach();
+      updateTurnAndPassIfNeeded(state);
+      recomputeReachAndHud();
+
+      const handled = checkEndOrHandleLightningChoice();
+      if (handled) return;
+
+      if (state.mode === 'cpu' && state.turn === W) {
+        setTimeout(cpuStep, 220);
+      }
+    } finally {
+      state.busy = false;
+      syncHud();
+    }
+  }
+
   function placeMove(x, y) {
     if (state.busy || state.gameOver || state.awaitingChoice) return;
-    if (! (x >=0 && x < N && y >=0 && y < N)) return;
+    if (!(x >= 0 && x < N && y >= 0 && y < N)) return;
     const k = key(x, y);
     if (!state.legal.has(k)) return;
 
@@ -526,9 +615,12 @@ import { chooseCpuMove } from './cpu.js';
     scorePill.textContent = `得点 黒:${state.scoreB} / 白:${state.scoreW}`;
     diffPill.textContent = `スコア差(自分-敵): ${state.scoreB - state.scoreW}`;
     itemPill.textContent = `⚡ 黒:${state.itemB} / 白:${state.itemW}`;
+    if (reversePill) reversePill.textContent = `🔄 黒:${state.reverseB} / 白:${state.reverseW}`;
 
     const canUse = !state.busy && !state.gameOver && !state.awaitingChoice && countItems(state, state.turn) > 0 && isBothNoMoves(state);
     lightningBtn.disabled = !canUse;
+    const canReverse = !state.busy && !state.gameOver && !state.awaitingChoice && countReverseItems(state, state.turn) > 0;
+    reverseBtn.disabled = !canReverse;
     if (diffSel) diffSel.disabled = state.mode !== 'cpu';
   }
 
@@ -557,6 +649,12 @@ import { chooseCpuMove } from './cpu.js';
   });
 
   lightningBtn.addEventListener('click', () => useLightning());
+  reverseBtn.addEventListener('click', () => {
+    if (!state.busy && !state.gameOver && !state.awaitingChoice && countReverseItems(state, state.turn) > 0) {
+      state.reverseMode = true;
+      toast('反転：相手の駒をタップ');
+    }
+  });
   resetBtn.addEventListener('click', () => {
     hideOverlay();
     resetGameUi();
@@ -590,6 +688,10 @@ import { chooseCpuMove } from './cpu.js';
   canvas.addEventListener('pointerup', (e) => {
     const c = pointToCell(e.clientX, e.clientY);
     if (!c) return;
+    if (state.reverseMode) {
+      applyReverseAt(c.cx, c.cy);
+      return;
+    }
     placeMove(c.cx, c.cy);
   });
 

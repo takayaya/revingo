@@ -15,6 +15,9 @@ import {
   recomputeReach,
   ensureEnemiesForLightning,
   findDeletions,
+  addReverseItem,
+  countReverseItems,
+  decReverseItem,
 } from '../src/gameLogic.js';
 import { chooseCpuMove } from '../src/cpu.js';
 
@@ -158,5 +161,36 @@ describe('ゲームロジック', () => {
 
     const move = chooseCpuMove(state, { random: () => 0 });
     assert.deepEqual(move, { x: 0, y: 0 });
+  });
+
+  it('反転アイテムの加算・上限・減算・リセットが正しく行われること', () => {
+    // 初期値
+    assert.equal(countReverseItems(state, B), 0);
+    assert.equal(countReverseItems(state, W), 0);
+
+    // 加算
+    addReverseItem(state, B, 2);
+    addReverseItem(state, W, 3);
+    assert.equal(countReverseItems(state, B), 2);
+    assert.equal(countReverseItems(state, W), 3);
+
+    // 上限5で抑制
+    addReverseItem(state, B, 10);
+    assert.equal(countReverseItems(state, B), 5);
+
+    // 減算で下限0
+    decReverseItem(state, B);
+    decReverseItem(state, B);
+    decReverseItem(state, B);
+    decReverseItem(state, B);
+    decReverseItem(state, B);
+    decReverseItem(state, B); // 0から減らない
+    assert.equal(countReverseItems(state, B), 0);
+
+    // リセットで初期化
+    addReverseItem(state, B, 4);
+    resetGame(state);
+    assert.equal(countReverseItems(state, B), 0);
+    assert.equal(countReverseItems(state, W), 0);
   });
 });
