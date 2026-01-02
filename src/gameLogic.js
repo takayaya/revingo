@@ -38,6 +38,7 @@ export function createState() {
     awaitingChoice: false,
     toastTimer: null,
     reach: { defs: [], empties: [] },
+    reverseMode: false,
   };
 }
 
