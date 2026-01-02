@@ -649,8 +649,18 @@ import { chooseCpuMove } from './cpu.js';
   });
 
   lightningBtn.addEventListener('click', () => useLightning());
+
+  function canUseReverse(state) {
+    return (
+      !state.busy &&
+      !state.gameOver &&
+      !state.awaitingChoice &&
+      countReverseItems(state, state.turn) > 0
+    );
+  }
+
   reverseBtn.addEventListener('click', () => {
-    if (!state.busy && !state.gameOver && !state.awaitingChoice && countReverseItems(state, state.turn) > 0) {
+    if (canUseReverse(state)) {
       state.reverseMode = true;
       toast('反転：相手の駒をタップ');
     }
