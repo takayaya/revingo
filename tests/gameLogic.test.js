@@ -234,4 +234,25 @@ describe('ゲームロジック', () => {
     assert.equal(isBonusActive(state, B), false);
     assert.equal(state.bingoGaugeB, 0);
   });
+
+  it('ボーナス加点がアクティブ状態のみで加算され戻り値が反映されること', () => {
+    // ボーナス前はスコアも戻り値も変化しない
+    const gainInactive = applyBonusFlipScore(state, B, 5);
+    assert.equal(gainInactive, 0);
+    assert.equal(state.scoreB, 0);
+
+    // ボーナスを有効化
+    addBingoProgress(state, B, 3);
+    assert.equal(isBonusActive(state, B), true);
+
+    // 反転数がそのまま加点され戻り値にも乗る
+    const gainActive = applyBonusFlipScore(state, B, 4);
+    assert.equal(gainActive, 4);
+    assert.equal(state.scoreB, 4);
+
+    // 反転数0の場合は戻り値・スコアともに増えない
+    const zeroGain = applyBonusFlipScore(state, B, 0);
+    assert.equal(zeroGain, 0);
+    assert.equal(state.scoreB, 4);
+  });
 });
