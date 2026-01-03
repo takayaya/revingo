@@ -305,7 +305,10 @@ import { chooseCpuMove } from './cpu.js';
 
       const gain = comboGain(cells.length, delInfo.lines);
       if (delInfo.lines > 0) {
+        console.log(`[BINGO] ${delInfo.lines}ライン成立！プレイヤー${scoringPlayer}に反転アイテムを${delInfo.lines}個追加します`);
+        console.log(`[BINGO] 追加前: 黒=${state.reverseB}, 白=${state.reverseW}`);
         addReverseItem(state, scoringPlayer, delInfo.lines);
+        console.log(`[BINGO] 追加後: 黒=${state.reverseB}, 白=${state.reverseW}`);
       }
       spawnDeleteAnim(cells, gain, delInfo.lines, delInfo.defs);
       await sleep(130);
