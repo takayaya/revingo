@@ -18,6 +18,12 @@ import {
   addReverseItem,
   countReverseItems,
   decReverseItem,
+  addBingoProgress,
+  resetBingoProgress,
+  isBonusActive,
+  applyBonusFlipScore,
+  consumeBonusTurn,
+  getBonusTurns,
 } from '../src/gameLogic.js';
 import { chooseCpuMove } from '../src/cpu.js';
 
@@ -192,5 +198,40 @@ describe('ゲームロジック', () => {
     resetGame(state);
     assert.equal(countReverseItems(state, B), 0);
     assert.equal(countReverseItems(state, W), 0);
+  });
+
+  it('連続ビンゴゲージが3回でボーナス状態になること', () => {
+    assert.equal(isBonusActive(state, B), false);
+    addBingoProgress(state, B, 3);
+    assert.equal(state.bingoGaugeB, 3);
+    assert.equal(getBonusTurns(state, B), 3);
+    assert.equal(isBonusActive(state, B), true);
+  });
+
+  it('ビンゴがないターンでゲージがリセットされ、ボーナス中は維持されること', () => {
+    addBingoProgress(state, B, 1);
+    resetBingoProgress(state, B);
+    assert.equal(state.bingoGaugeB, 0);
+
+    addBingoProgress(state, B, 3);
+    assert.equal(state.bingoGaugeB, 3);
+    resetBingoProgress(state, B);
+    assert.equal(state.bingoGaugeB, 3);
+    assert.equal(isBonusActive(state, B), true);
+  });
+
+  it('ボーナス中は反転数が得点に加算され、3ターンで失効すること', () => {
+    addBingoProgress(state, B, 3);
+    applyBonusFlipScore(state, B, 4);
+    assert.equal(state.scoreB, 4);
+    assert.equal(getBonusTurns(state, B), 3);
+
+    consumeBonusTurn(state, B);
+    assert.equal(isBonusActive(state, B), true);
+    consumeBonusTurn(state, B);
+    assert.equal(getBonusTurns(state, B), 1);
+    consumeBonusTurn(state, B);
+    assert.equal(isBonusActive(state, B), false);
+    assert.equal(state.bingoGaugeB, 0);
   });
 });

@@ -39,6 +39,12 @@ export function createState() {
     toastTimer: null,
     reach: { defs: [], empties: [] },
     reverseMode: false,
+    bingoGaugeB: 0,
+    bingoGaugeW: 0,
+    bingoStreakB: 0,
+    bingoStreakW: 0,
+    bonusTurnsB: 0,
+    bonusTurnsW: 0,
   };
 }
 
@@ -150,6 +156,62 @@ export function addReverseItem(state, player, n, cap = 5) {
   if (n <= 0) return;
   if (player === B) state.reverseB = Math.min(cap, state.reverseB + n);
   else state.reverseW = Math.min(cap, state.reverseW + n);
+}
+
+const gaugeKey = (player) => (player === B ? 'bingoGaugeB' : 'bingoGaugeW');
+const streakKey = (player) => (player === B ? 'bingoStreakB' : 'bingoStreakW');
+const bonusTurnKey = (player) => (player === B ? 'bonusTurnsB' : 'bonusTurnsW');
+
+export function isBonusActive(state, player) {
+  return state[bonusTurnKey(player)] > 0;
+}
+
+export function getBonusTurns(state, player) {
+  return state[bonusTurnKey(player)];
+}
+
+export function addBingoProgress(state, player, count = 1) {
+  if (count <= 0) return;
+  const gKey = gaugeKey(player);
+  const sKey = streakKey(player);
+  const bKey = bonusTurnKey(player);
+  if (state[bKey] > 0) {
+    state[gKey] = 3;
+    return;
+  }
+  state[sKey] = Math.min(3, state[sKey] + count);
+  state[gKey] = Math.min(3, state[gKey] + count);
+  if (state[gKey] >= 3) {
+    state[gKey] = 3;
+    state[bKey] = 3;
+    state[sKey] = 0;
+  }
+}
+
+export function resetBingoProgress(state, player) {
+  const gKey = gaugeKey(player);
+  const sKey = streakKey(player);
+  const bKey = bonusTurnKey(player);
+  if (state[bKey] > 0) return;
+  state[gKey] = 0;
+  state[sKey] = 0;
+}
+
+export function consumeBonusTurn(state, player) {
+  const bKey = bonusTurnKey(player);
+  if (state[bKey] > 0) {
+    state[bKey] = Math.max(0, state[bKey] - 1);
+    if (state[bKey] === 0) {
+      state[gaugeKey(player)] = 0;
+      state[streakKey(player)] = 0;
+    }
+  }
+}
+
+export function applyBonusFlipScore(state, player, flips) {
+  if (!isBonusActive(state, player)) return;
+  if (flips <= 0) return;
+  addScore(state, player, flips);
 }
 
 export function updateTurnAndPassIfNeeded(state) {
@@ -418,6 +480,12 @@ export function resetGame(state) {
   state.itemW = 1;
   state.reverseB = 0;
   state.reverseW = 0;
+  state.bingoGaugeB = 0;
+  state.bingoGaugeW = 0;
+  state.bingoStreakB = 0;
+  state.bingoStreakW = 0;
+  state.bonusTurnsB = 0;
+  state.bonusTurnsW = 0;
   resetBoardKeepScoreAndItems(state);
 }
 
