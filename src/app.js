@@ -28,7 +28,6 @@ import {
   addBingoProgress,
   resetBingoProgress,
   isBonusActive,
-  applyBonusFlipScore,
   applyBonusPlacementScore,
   consumeBonusTurn,
   getBonusTurns,
@@ -311,43 +310,6 @@ import { chooseCpuMove } from './cpu.js';
     addFlash(Math.min(0.6, 0.18 + cells.length * 0.008 + ((lines || 1) - 1) * 0.1));
   }
 
-  function spawnBonusFlipAnim(flips, origin, gain) {
-    if (!flips || flips.length === 0 || gain <= 0) return;
-
-    const target = { x: N / 2, y: -0.7 };
-    const fx = flips.slice();
-    shuffle(fx);
-    const sparks = fx.slice(0, Math.min(14, fx.length));
-    for (const [x, y] of sparks) {
-      state.anims.push({
-        type: 'bonusOrb',
-        x: x + 0.5,
-        y: y + 0.5,
-        tx: target.x + (Math.random() - 0.5) * 0.8,
-        ty: target.y + (Math.random() - 0.5) * 0.28,
-        t: 0,
-        seed: Math.random() * 9999,
-      });
-      state.anims.push({ type: 'bonusPulse', x, y, t: 0 });
-    }
-
-    let cx = 0,
-      cy = 0;
-    for (const [x, y] of flips) {
-      cx += x;
-      cy += y;
-    }
-    cx /= flips.length;
-    cy /= flips.length;
-    if (origin) {
-      cx = origin.x;
-      cy = origin.y;
-    }
-
-    state.anims.push({ type: 'bonusLabel', t: 0, x: cx, y: cy, value: gain });
-    addFlash(0.12 + Math.min(0.18, flips.length * 0.012));
-  }
-
   function spawnBonusPlacementAnim(cells, gain) {
     if (!cells || cells.length === 0 || gain <= 0) return;
 
@@ -599,8 +561,6 @@ import { chooseCpuMove } from './cpu.js';
       const flipCount = flips.length;
       for (const [fx, fy] of flips) set(fx, fy, player);
       state.lastMove = { x, y, player, flips: flips.length, reverse: true };
-      const bonusGain = applyBonusFlipScore(state, player, flipCount);
-      if (bonusGain > 0) spawnBonusFlipAnim(flips, { x, y }, bonusGain);
       const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
       if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
 
@@ -639,8 +599,6 @@ import { chooseCpuMove } from './cpu.js';
     set(x, y, player);
     for (const [fx, fy] of flips) set(fx, fy, player);
     state.lastMove = { x, y, player, flips: flips.length };
-    const bonusGain = applyBonusFlipScore(state, player, flipCount);
-    if (bonusGain > 0) spawnBonusFlipAnim(flips, { x, y }, bonusGain);
     const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
     if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
 
@@ -998,14 +956,11 @@ import { chooseCpuMove } from './cpu.js';
     for (const a of state.anims) a.t += 1 / 60;
     state.anims = state.anims.filter((a) => {
       if (a.type === 'pop') return a.t < 0.55;
-      if (a.type === 'bonusPulse') return a.t < 0.48;
       if (a.type === 'bonusPlacementPulse') return a.t < 0.7;
       if (a.type === 'score') return a.t < 0.9;
       if (a.type === 'spark') return a.t < a.life;
       if (a.type === 'line') return a.t < 0.52;
       if (a.type === 'bolt') return a.t < 0.28;
-      if (a.type === 'bonusOrb') return a.t < 0.95;
-      if (a.type === 'bonusLabel') return a.t < 1.25;
       if (a.type === 'bonusPlacementLabel') return a.t < 1.4;
       if (a.type === 'bingo') return a.t < 0.8;
       return a.t < 0.8;
@@ -1061,25 +1016,6 @@ import { chooseCpuMove } from './cpu.js';
         }
       }
       ctx.stroke();
-    }
-
-    for (const a of state.anims) {
-      if (a.type !== 'bonusOrb') continue;
-      const t = clamp(a.t / 0.95, 0, 1);
-      const travel = easeOutCubic(t);
-      const wobble = Math.sin(a.seed + t * 10) * 0.2 * (1 - travel);
-      const lift = Math.sin(a.seed * 1.7 + t * 8) * 0.08;
-      const px = bx + (a.x + (a.tx - a.x) * travel + wobble) * cs;
-      const py = by + (a.y + (a.ty - a.y) * travel + lift) * cs;
-      const r = Math.max(2, cs * (0.07 + 0.14 * (1 - travel)));
-      const alpha = 1 - t * 0.92;
-      const grad = ctx.createRadialGradient(px, py, r * 0.25, px, py, r * 1.55);
-      grad.addColorStop(0, `hsla(${state.flashHue},100%,82%,${alpha})`);
-      grad.addColorStop(1, `hsla(${state.flashHue},95%,60%,${alpha * 0.25})`);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fill();
     }
 
     for (const a of state.anims) {
@@ -1160,17 +1096,6 @@ import { chooseCpuMove } from './cpu.js';
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (a.type === 'bonusPulse') {
-        const p = easeOutCubic(clamp(a.t / 0.48, 0, 1));
-        const alpha = 1 - p;
-        const cx = bx + a.x * cs + cs / 2;
-        const cy = by + a.y * cs + cs / 2;
-        const r = cs * (0.32 + 0.32 * p);
-        ctx.strokeStyle = `hsla(${state.flashHue},100%,70%,${0.65 * alpha})`;
-        ctx.lineWidth = Math.max(1.6, cs * (0.04 + 0.03 * (1 - p)));
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
       } else if (a.type === 'bonusPlacementPulse') {
         const p = easeOutCubic(clamp(a.t / 0.7, 0, 1));
         const alpha = 1 - p;
@@ -1210,20 +1135,6 @@ import { chooseCpuMove } from './cpu.js';
             ctx.fillText(`COMBO x${a.lines}`, cx, cy + Math.max(14, cs * 0.42));
           }
         }
-      } else if (a.type === 'bonusLabel') {
-        const p = clamp(a.t / 1.25, 0, 1);
-        const rise = easeOutCubic(p);
-        const alpha = 1 - p;
-        const cx = bx + (a.x + 0.5) * cs;
-        const cy = by + (a.y + 0.5) * cs - cs * (0.3 + 0.7 * rise);
-        ctx.font = `900 ${Math.max(17, cs * 0.58)}px system-ui`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.strokeStyle = `rgba(0,0,0,${0.35 * alpha})`;
-        ctx.lineWidth = Math.max(2, cs * 0.08);
-        ctx.strokeText(`BONUS +${a.value}`, cx, cy);
-        ctx.fillStyle = `hsla(${state.flashHue},100%,72%,${0.92 * alpha})`;
-        ctx.fillText(`BONUS +${a.value}`, cx, cy);
       } else if (a.type === 'bonusPlacementLabel') {
         const p = clamp(a.t / 1.4, 0, 1);
         const alpha = 1 - p;

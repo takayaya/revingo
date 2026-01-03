@@ -211,13 +211,6 @@ export function consumeBonusTurn(state, player) {
   }
 }
 
-export function applyBonusFlipScore(state, player, flips) {
-  if (!isBonusActive(state, player)) return 0;
-  if (flips <= 0) return 0;
-  addScore(state, player, flips);
-  return flips;
-}
-
 export function applyBonusPlacementScore(state, player) {
   if (!isBonusActive(state, player)) return { gain: 0, cells: [] };
 
