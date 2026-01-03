@@ -25,6 +25,12 @@ import {
   shuffle,
   resetGame as resetGameState,
   inBounds,
+  addBingoProgress,
+  resetBingoProgress,
+  isBonusActive,
+  applyBonusFlipScore,
+  consumeBonusTurn,
+  getBonusTurns,
 } from './gameLogic.js';
 import { chooseCpuMove } from './cpu.js';
 
@@ -38,6 +44,7 @@ import { chooseCpuMove } from './cpu.js';
   const diffPill = document.getElementById('diffPill');
   const itemPill = document.getElementById('itemPill');
   const reversePill = document.getElementById('reversePill');
+  const gaugePill = document.getElementById('gaugePill');
   const titlePill = document.getElementById('titlePill');
 
   const modeSel = document.getElementById('modeSel');
@@ -176,6 +183,17 @@ import { chooseCpuMove } from './cpu.js';
     syncHud();
   }
 
+  function handleBonusAfterTurn(player, bingoCount) {
+    const wasActive = isBonusActive(state, player);
+    if (bingoCount > 0) addBingoProgress(state, player, bingoCount);
+    else resetBingoProgress(state, player);
+    const turns = getBonusTurns(state, player);
+    const activatedNow = !wasActive && turns > 0;
+    if (!activatedNow && turns > 0) {
+      consumeBonusTurn(state, player);
+    }
+  }
+
   // ===== deletion rules =====
   function addFlash(amount) {
     const th = THEMES[state.theme] || THEMES.neon;
@@ -293,9 +311,11 @@ import { chooseCpuMove } from './cpu.js';
   }
 
   async function resolveAfterChange(scoringPlayer) {
+    let bingoCount = 0;
     for (let chain = 0; chain < 8; chain++) {
       const delInfo = findDeletions(state);
       if (delInfo.lines === 0) break;
+      bingoCount += delInfo.lines;
 
       const cells = [];
       for (const k of delInfo.cells) {
@@ -318,6 +338,7 @@ import { chooseCpuMove } from './cpu.js';
       recomputeReachAndHud();
       await sleep(120);
     }
+    return { bingoCount };
   }
 
   // ===== end / lightning choice =====
@@ -441,11 +462,13 @@ import { chooseCpuMove } from './cpu.js';
       for (const [x, y] of destroyed) set(x, y, EMPTY);
       for (const [x, y] of destroyed) set(x, y, player);
 
-      await resolveAfterChange(player);
+      const { bingoCount } = await resolveAfterChange(player);
 
       computeLegalAndReach();
       updateTurnAndPassIfNeeded(state);
       recomputeReachAndHud();
+
+      handleBonusAfterTurn(player, bingoCount);
 
       checkEndOrHandleLightningChoice();
 
@@ -524,15 +547,19 @@ import { chooseCpuMove } from './cpu.js';
       decReverseItem(state, player);
       set(x, y, player);
       const flips = collectFlipsFromOccupied(x, y, player);
+      const flipCount = flips.length;
       for (const [fx, fy] of flips) set(fx, fy, player);
       state.lastMove = { x, y, player, flips: flips.length, reverse: true };
+      applyBonusFlipScore(state, player, flipCount);
 
-      await resolveAfterChange(player);
+      const { bingoCount } = await resolveAfterChange(player);
 
       state.turn = opponent(state.turn);
       computeLegalAndReach();
       updateTurnAndPassIfNeeded(state);
       recomputeReachAndHud();
+
+      handleBonusAfterTurn(player, bingoCount);
 
       const handled = checkEndOrHandleLightningChoice();
       if (handled) return;
@@ -554,20 +581,24 @@ import { chooseCpuMove } from './cpu.js';
 
     const player = state.turn;
     const flips = collectFlips(state, x, y, player);
+    const flipCount = flips.length;
 
     state.busy = true;
     set(x, y, player);
     for (const [fx, fy] of flips) set(fx, fy, player);
     state.lastMove = { x, y, player, flips: flips.length };
+    applyBonusFlipScore(state, player, flipCount);
 
     (async () => {
       try {
-        await resolveAfterChange(player);
+        const { bingoCount } = await resolveAfterChange(player);
 
         state.turn = opponent(state.turn);
         computeLegalAndReach();
         updateTurnAndPassIfNeeded(state);
         recomputeReachAndHud();
+
+        handleBonusAfterTurn(player, bingoCount);
 
         const handled = checkEndOrHandleLightningChoice();
         if (handled) return;
@@ -621,6 +652,12 @@ import { chooseCpuMove } from './cpu.js';
     diffPill.textContent = `スコア差(自分-敵): ${state.scoreB - state.scoreW}`;
     itemPill.textContent = `⚡ 黒:${state.itemB} / 白:${state.itemW}`;
     if (reversePill) reversePill.textContent = `🔄 黒:${state.reverseB} / 白:${state.reverseW}`;
+    const gaugeText = (player) => {
+      const gauge = player === B ? state.bingoGaugeB : state.bingoGaugeW;
+      const turns = player === B ? state.bonusTurnsB : state.bonusTurnsW;
+      return turns > 0 ? `${gauge}/3 (残り${turns}手)` : `${gauge}/3`;
+    };
+    if (gaugePill) gaugePill.textContent = `連続ボーナス: 黒 ${gaugeText(B)} / 白 ${gaugeText(W)}`;
 
     const canUse = !state.busy && !state.gameOver && !state.awaitingChoice && countItems(state, state.turn) > 0 && isBothNoMoves(state);
     lightningBtn.disabled = !canUse;
