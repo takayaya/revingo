@@ -101,6 +101,7 @@
       <span class="pill mini" id="scorePill">得点 黒:0 / 白:0</span>
       <span class="pill mini" id="diffPill">スコア差(自分-敵): 0</span>
       <span class="pill mini" id="itemPill">⚡ 黒:1 / 白:1</span>
+      <span class="pill mini" id="reversePill">🔄 黒:0 / 白:0</span>
     </div>
 
     <div class="controls">
@@ -130,6 +131,7 @@
       </label>
 
       <button id="lightningBtn" class="mini" title="稲妻：双方合法手なしのときだけ使用可">⚡ 稲妻</button>
+      <button id="reverseBtn" class="mini" title="反転：相手の駒を1つ自分の色に変える">🔄 反転</button>
       <button id="resetBtn" class="mini">リセット</button>
     </div>
   </header>
@@ -169,7 +171,8 @@
   <div style="margin-top:6px;"><span class="warn">パスルール</span>：盤上に<b>空きマスがある</b>のに手番が指せる手が無い場合は <b>相手のターン</b>（自動パス）。</div>
   <div style="margin-top:6px;"><span class="warn">終局</span>：双方とも指せる手が無い（=両者の合法手が0）状態になったら<b>ゲームオーバー</b>。ただしその瞬間に⚡が残っていれば<b>稲妻で続行</b>できます。</div>
   <div style="margin-top:6px;"><span class="warn">稲妻</span>：敵の駒をランダムに<b>5個</b>破壊 → 破壊した<b>5箇所すべて</b>に<b>自駒を5個</b>再配置（<b>手番は消費しない / 自駒破壊コストなし</b> / 初期所持：黒1・白1）。</div>
-  <div style="margin-top:6px;">操作：タップ＝着手 / <kbd>⚡稲妻</kbd>＝アイテム発動 / <kbd>リセット</kbd>＝初期化</div>
+  <div style="margin-top:6px;"><span class="warn">反転アイテム🔄</span>：<b>BINGO成立ごとに1個</b>（複数ラインならその本数）を獲得。自分の手番に使うと、<b>相手の置いた駒を1つ自分の色に反転</b>し、その後の挟み込みも通常通り発生する（使用は手番を消費）。</div>
+  <div style="margin-top:6px;">操作：タップ＝着手 / <kbd>⚡稲妻</kbd>＝稲妻発動 / <kbd>🔄反転</kbd>＝反転アイテム発動 / <kbd>リセット</kbd>＝初期化</div>
 </div>
 
 <script type="module" src="./src/app.js"></script>

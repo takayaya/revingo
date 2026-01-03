@@ -21,6 +21,8 @@ export function createState() {
     scoreW: 0,
     itemB: 1,
     itemW: 1,
+    reverseB: 0,
+    reverseW: 0,
     mode: 'cpu',
     difficulty: 'normal',
     theme: 'neon',
@@ -36,6 +38,7 @@ export function createState() {
     awaitingChoice: false,
     toastTimer: null,
     reach: { defs: [], empties: [] },
+    reverseMode: false,
   };
 }
 
@@ -129,9 +132,24 @@ export function countItems(state, player) {
   return player === B ? state.itemB : state.itemW;
 }
 
+export function countReverseItems(state, player) {
+  return player === B ? state.reverseB : state.reverseW;
+}
+
 export function decItem(state, player) {
   if (player === B) state.itemB = Math.max(0, state.itemB - 1);
   else state.itemW = Math.max(0, state.itemW - 1);
+}
+
+export function decReverseItem(state, player) {
+  if (player === B) state.reverseB = Math.max(0, state.reverseB - 1);
+  else state.reverseW = Math.max(0, state.reverseW - 1);
+}
+
+export function addReverseItem(state, player, n, cap = 5) {
+  if (n <= 0) return;
+  if (player === B) state.reverseB = Math.min(cap, state.reverseB + n);
+  else state.reverseW = Math.min(cap, state.reverseW + n);
 }
 
 export function updateTurnAndPassIfNeeded(state) {
@@ -398,6 +416,8 @@ export function resetGame(state) {
   state.scoreW = 0;
   state.itemB = 1;
   state.itemW = 1;
+  state.reverseB = 0;
+  state.reverseW = 0;
   resetBoardKeepScoreAndItems(state);
 }
 
