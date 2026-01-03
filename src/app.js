@@ -29,6 +29,7 @@ import {
   resetBingoProgress,
   isBonusActive,
   applyBonusFlipScore,
+  applyBonusPlacementScore,
   consumeBonusTurn,
   getBonusTurns,
 } from './gameLogic.js';
@@ -347,6 +348,17 @@ import { chooseCpuMove } from './cpu.js';
     addFlash(0.12 + Math.min(0.18, flips.length * 0.012));
   }
 
+  function spawnBonusPlacementAnim(cells, gain) {
+    if (!cells || cells.length === 0 || gain <= 0) return;
+
+    for (const [x, y] of cells) {
+      state.anims.push({ type: 'bonusPlacementPulse', x, y, t: 0 });
+    }
+
+    state.anims.push({ type: 'bonusPlacementLabel', t: 0, x: N / 2 - 0.5, y: N / 2 - 0.5, value: gain });
+    addFlash(0.2 + Math.min(0.22, cells.length * 0.01));
+  }
+
   async function resolveAfterChange(scoringPlayer) {
     let bingoCount = 0;
     for (let chain = 0; chain < 8; chain++) {
@@ -589,6 +601,8 @@ import { chooseCpuMove } from './cpu.js';
       state.lastMove = { x, y, player, flips: flips.length, reverse: true };
       const bonusGain = applyBonusFlipScore(state, player, flipCount);
       if (bonusGain > 0) spawnBonusFlipAnim(flips, { x, y }, bonusGain);
+      const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
+      if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
 
       const { bingoCount } = await resolveAfterChange(player);
 
@@ -627,6 +641,8 @@ import { chooseCpuMove } from './cpu.js';
     state.lastMove = { x, y, player, flips: flips.length };
     const bonusGain = applyBonusFlipScore(state, player, flipCount);
     if (bonusGain > 0) spawnBonusFlipAnim(flips, { x, y }, bonusGain);
+    const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
+    if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
 
     (async () => {
       try {
@@ -983,12 +999,14 @@ import { chooseCpuMove } from './cpu.js';
     state.anims = state.anims.filter((a) => {
       if (a.type === 'pop') return a.t < 0.55;
       if (a.type === 'bonusPulse') return a.t < 0.48;
+      if (a.type === 'bonusPlacementPulse') return a.t < 0.7;
       if (a.type === 'score') return a.t < 0.9;
       if (a.type === 'spark') return a.t < a.life;
       if (a.type === 'line') return a.t < 0.52;
       if (a.type === 'bolt') return a.t < 0.28;
       if (a.type === 'bonusOrb') return a.t < 0.95;
       if (a.type === 'bonusLabel') return a.t < 1.25;
+      if (a.type === 'bonusPlacementLabel') return a.t < 1.4;
       if (a.type === 'bingo') return a.t < 0.8;
       return a.t < 0.8;
     });
@@ -1153,6 +1171,17 @@ import { chooseCpuMove } from './cpu.js';
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (a.type === 'bonusPlacementPulse') {
+        const p = easeOutCubic(clamp(a.t / 0.7, 0, 1));
+        const alpha = 1 - p;
+        const cx = bx + a.x * cs + cs / 2;
+        const cy = by + a.y * cs + cs / 2;
+        const r = cs * (0.36 + 0.46 * p);
+        ctx.strokeStyle = `hsla(${state.flashHue},100%,75%,${0.55 * alpha})`;
+        ctx.lineWidth = Math.max(1.2, cs * (0.05 + 0.05 * (1 - p)));
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
       } else if (a.type === 'score') {
         const p = easeOutCubic(clamp(a.t / 0.9, 0, 1));
         const alpha = 1 - p;
@@ -1195,6 +1224,24 @@ import { chooseCpuMove } from './cpu.js';
         ctx.strokeText(`BONUS +${a.value}`, cx, cy);
         ctx.fillStyle = `hsla(${state.flashHue},100%,72%,${0.92 * alpha})`;
         ctx.fillText(`BONUS +${a.value}`, cx, cy);
+      } else if (a.type === 'bonusPlacementLabel') {
+        const p = clamp(a.t / 1.4, 0, 1);
+        const alpha = 1 - p;
+        const bounce = 0.9 + 0.2 * Math.sin(Math.PI * Math.min(1, p * 1.2));
+        const cx = bx + (a.x + 0.5) * cs;
+        const cy = by + (a.y + 0.5) * cs - cs * (0.15 * easeOutCubic(p));
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(bounce, bounce);
+        ctx.font = `900 ${Math.max(24, cs * 0.9)}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = `rgba(0,0,0,${0.4 * alpha})`;
+        ctx.lineWidth = Math.max(3, cs * 0.12);
+        ctx.strokeText(`BONUS +${a.value}`, 0, 0);
+        ctx.fillStyle = `hsla(${state.flashHue},100%,76%,${0.95 * alpha})`;
+        ctx.fillText(`BONUS +${a.value}`, 0, 0);
+        ctx.restore();
       }
     }
 

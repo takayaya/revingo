@@ -22,8 +22,11 @@ import {
   resetBingoProgress,
   isBonusActive,
   applyBonusFlipScore,
+  applyBonusPlacementScore,
   consumeBonusTurn,
   getBonusTurns,
+  BONUS_PLACEMENT_FACTOR,
+  BONUS_TURN_COUNT,
 } from '../src/gameLogic.js';
 import { chooseCpuMove } from '../src/cpu.js';
 
@@ -204,7 +207,7 @@ describe('ゲームロジック', () => {
     assert.equal(isBonusActive(state, B), false);
     addBingoProgress(state, B, 3);
     assert.equal(state.bingoGaugeB, 3);
-    assert.equal(getBonusTurns(state, B), 3);
+    assert.equal(getBonusTurns(state, B), BONUS_TURN_COUNT);
     assert.equal(isBonusActive(state, B), true);
   });
 
@@ -220,17 +223,13 @@ describe('ゲームロジック', () => {
     assert.equal(isBonusActive(state, B), true);
   });
 
-  it('ボーナス中は反転数が得点に加算され、3ターンで失効すること', () => {
+  it('ボーナス中は反転数が得点に加算され、ボーナスターン経過で失効すること', () => {
     addBingoProgress(state, B, 3);
     applyBonusFlipScore(state, B, 4);
     assert.equal(state.scoreB, 4);
-    assert.equal(getBonusTurns(state, B), 3);
+    assert.equal(getBonusTurns(state, B), BONUS_TURN_COUNT);
 
-    consumeBonusTurn(state, B);
-    assert.equal(isBonusActive(state, B), true);
-    consumeBonusTurn(state, B);
-    assert.equal(getBonusTurns(state, B), 1);
-    consumeBonusTurn(state, B);
+    for (let i = 0; i < BONUS_TURN_COUNT; i++) consumeBonusTurn(state, B);
     assert.equal(isBonusActive(state, B), false);
     assert.equal(state.bingoGaugeB, 0);
   });
@@ -254,5 +253,18 @@ describe('ゲームロジック', () => {
     const zeroGain = applyBonusFlipScore(state, B, 0);
     assert.equal(zeroGain, 0);
     assert.equal(state.scoreB, 4);
+  });
+
+  it('ボーナス中の配置加点が全自駒数×係数で加算されること', () => {
+    addBingoProgress(state, B, 3);
+    // 既存の初期2石 + 追加で4石 = 6石
+    setCell(state, 0, 0, B);
+    setCell(state, 7, 7, B);
+    setCell(state, 0, 7, B);
+    setCell(state, 7, 0, B);
+    const { gain, cells } = applyBonusPlacementScore(state, B);
+    assert.equal(cells.length, 6);
+    assert.equal(gain, Math.floor(cells.length * BONUS_PLACEMENT_FACTOR));
+    assert.equal(state.scoreB, gain);
   });
 });

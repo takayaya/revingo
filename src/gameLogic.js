@@ -48,6 +48,9 @@ export function createState() {
   };
 }
 
+export const BONUS_PLACEMENT_FACTOR = 2;
+export const BONUS_TURN_COUNT = 5;
+
 export const opponent = (p) => (p === B ? W : B);
 export const inBounds = (x, y) => x >= 0 && x < N && y >= 0 && y < N;
 export const getCell = (state, x, y) => state.board[y][x];
@@ -183,7 +186,7 @@ export function addBingoProgress(state, player, count = 1) {
   state[gKey] = Math.min(3, state[gKey] + count);
   if (state[gKey] >= 3) {
     state[gKey] = 3;
-    state[bKey] = 3;
+    state[bKey] = BONUS_TURN_COUNT;
     state[sKey] = 0;
   }
 }
@@ -213,6 +216,21 @@ export function applyBonusFlipScore(state, player, flips) {
   if (flips <= 0) return 0;
   addScore(state, player, flips);
   return flips;
+}
+
+export function applyBonusPlacementScore(state, player) {
+  if (!isBonusActive(state, player)) return { gain: 0, cells: [] };
+
+  const cells = [];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (getCell(state, x, y) === player) cells.push([x, y]);
+    }
+  }
+
+  const gain = Math.floor(cells.length * BONUS_PLACEMENT_FACTOR);
+  if (gain > 0) addScore(state, player, gain);
+  return { gain, cells };
 }
 
 export function updateTurnAndPassIfNeeded(state) {
