@@ -473,6 +473,9 @@ import { chooseCpuMove } from './cpu.js';
       for (const [x, y] of destroyed) set(x, y, EMPTY);
       for (const [x, y] of destroyed) set(x, y, player);
 
+      const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
+      if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
+
       const { bingoCount } = await resolveAfterChange(player);
 
       computeLegalAndReach();
@@ -1149,9 +1152,9 @@ import { chooseCpuMove } from './cpu.js';
         ctx.textBaseline = 'middle';
         ctx.strokeStyle = `rgba(0,0,0,${0.4 * alpha})`;
         ctx.lineWidth = Math.max(3, cs * 0.12);
-        ctx.strokeText(`BONUS +${a.value}`, 0, 0);
+        ctx.strokeText('BONUS', 0, 0);
         ctx.fillStyle = `hsla(${state.flashHue},100%,76%,${0.95 * alpha})`;
-        ctx.fillText(`BONUS +${a.value}`, 0, 0);
+        ctx.fillText('BONUS', 0, 0);
         ctx.restore();
       }
     }
