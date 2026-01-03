@@ -21,9 +21,11 @@ import {
   addBingoProgress,
   resetBingoProgress,
   isBonusActive,
-  applyBonusFlipScore,
+  applyBonusPlacementScore,
   consumeBonusTurn,
   getBonusTurns,
+  BONUS_PLACEMENT_FACTOR,
+  BONUS_TURN_COUNT,
 } from '../src/gameLogic.js';
 import { chooseCpuMove } from '../src/cpu.js';
 
@@ -204,7 +206,7 @@ describe('ゲームロジック', () => {
     assert.equal(isBonusActive(state, B), false);
     addBingoProgress(state, B, 3);
     assert.equal(state.bingoGaugeB, 3);
-    assert.equal(getBonusTurns(state, B), 3);
+    assert.equal(getBonusTurns(state, B), BONUS_TURN_COUNT);
     assert.equal(isBonusActive(state, B), true);
   });
 
@@ -220,39 +222,27 @@ describe('ゲームロジック', () => {
     assert.equal(isBonusActive(state, B), true);
   });
 
-  it('ボーナス中は反転数が得点に加算され、3ターンで失効すること', () => {
+  it('ボーナス中は配置ボーナスが加算され、ターン経過で失効すること', () => {
     addBingoProgress(state, B, 3);
-    applyBonusFlipScore(state, B, 4);
-    assert.equal(state.scoreB, 4);
-    assert.equal(getBonusTurns(state, B), 3);
+    const { gain } = applyBonusPlacementScore(state, B);
+    assert.ok(gain > 0);
+    assert.equal(getBonusTurns(state, B), BONUS_TURN_COUNT);
 
-    consumeBonusTurn(state, B);
-    assert.equal(isBonusActive(state, B), true);
-    consumeBonusTurn(state, B);
-    assert.equal(getBonusTurns(state, B), 1);
-    consumeBonusTurn(state, B);
+    for (let i = 0; i < BONUS_TURN_COUNT; i++) consumeBonusTurn(state, B);
     assert.equal(isBonusActive(state, B), false);
     assert.equal(state.bingoGaugeB, 0);
   });
 
-  it('ボーナス加点がアクティブ状態のみで加算され戻り値が反映されること', () => {
-    // ボーナス前はスコアも戻り値も変化しない
-    const gainInactive = applyBonusFlipScore(state, B, 5);
-    assert.equal(gainInactive, 0);
-    assert.equal(state.scoreB, 0);
-
-    // ボーナスを有効化
+  it('ボーナス中の配置加点が全自駒数×係数で加算されること', () => {
     addBingoProgress(state, B, 3);
-    assert.equal(isBonusActive(state, B), true);
-
-    // 反転数がそのまま加点され戻り値にも乗る
-    const gainActive = applyBonusFlipScore(state, B, 4);
-    assert.equal(gainActive, 4);
-    assert.equal(state.scoreB, 4);
-
-    // 反転数0の場合は戻り値・スコアともに増えない
-    const zeroGain = applyBonusFlipScore(state, B, 0);
-    assert.equal(zeroGain, 0);
-    assert.equal(state.scoreB, 4);
+    // 既存の初期2石 + 追加で4石 = 6石
+    setCell(state, 0, 0, B);
+    setCell(state, 7, 7, B);
+    setCell(state, 0, 7, B);
+    setCell(state, 7, 0, B);
+    const { gain, cells } = applyBonusPlacementScore(state, B);
+    assert.equal(cells.length, 6);
+    assert.equal(gain, Math.floor(cells.length * BONUS_PLACEMENT_FACTOR));
+    assert.equal(state.scoreB, gain);
   });
 });
