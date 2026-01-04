@@ -133,7 +133,11 @@ describe('ゲームロジック', () => {
   });
 
   it('空きマスがない場合は敵駒を破壊して配置されること', () => {
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) setCell(state, x, y, W);
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        setCell(state, x, y, W);
+      }
+    }
     const targets = ensureEnemiesForLightning(state, B, 5);
     assert.ok(targets);
     assert.equal(targets.length, 5);
