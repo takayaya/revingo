@@ -501,25 +501,34 @@ export function resetGame(state) {
   resetBoardKeepScoreAndItems(state);
 }
 
+// 稲妻用：空きマスを優先し、足りなければ敵駒を対象にする
 export function ensureEnemiesForLightning(state, player, desiredCount) {
   const enemy = opponent(player);
-  const enemyCells = [];
   const emptyCells = [];
+  const enemyCells = [];
 
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const cell = getCell(state, x, y);
-    if (cell === enemy) enemyCells.push([x, y]);
-    else if (cell === EMPTY) emptyCells.push([x, y]);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const cell = getCell(state, x, y);
+      if (cell === EMPTY) emptyCells.push([x, y]);
+      else if (cell === enemy) enemyCells.push([x, y]);
+    }
   }
 
-  if (enemyCells.length === 0 && emptyCells.length === 0) return null;
+  if (enemyCells.length === 0 && emptyCells.length === 0) return [];
 
   shuffle(emptyCells);
-  while (enemyCells.length < desiredCount && emptyCells.length > 0) {
-    const pos = emptyCells.pop();
-    setCell(state, pos[0], pos[1], enemy);
-    enemyCells.push(pos);
+  shuffle(enemyCells);
+
+  const targets = [];
+
+  while (targets.length < desiredCount && emptyCells.length > 0) {
+    targets.push(emptyCells.pop());
   }
 
-  return enemyCells;
+  while (targets.length < desiredCount && enemyCells.length > 0) {
+    targets.push(enemyCells.pop());
+  }
+
+  return targets;
 }

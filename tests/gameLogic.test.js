@@ -120,14 +120,28 @@ describe('ゲームロジック', () => {
     assert.ok(reachWithFlip.empties.some((e) => e.x === 3 && e.y === 1 && e.kind === 'col' && e.idx === 3));
   });
 
-  it('稲妻の敵駒注入が正しく行われること', () => {
+  it('稲妻は空きマスを優先して配置されること', () => {
     clearBoard();
-    setCell(state, 3, 3, B);
-    setCell(state, 4, 4, B);
-    const injected = ensureEnemiesForLightning(state, B, 5);
-    assert.ok(injected);
-    assert.equal(injected.length, 5);
-    assert.equal(countBy(W), 5);
+    // 敵駒があっても空きマスが優先される
+    setCell(state, 0, 0, W);
+    const targets = ensureEnemiesForLightning(state, B, 5);
+    assert.ok(targets);
+    assert.equal(targets.length, 5);
+    assert.ok(targets.every(([x, y]) => getCell(state, x, y) === EMPTY));
+    // 盤面は変更されない
+    assert.equal(countBy(W), 1);
+  });
+
+  it('空きマスがない場合は敵駒を破壊して配置されること', () => {
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        setCell(state, x, y, W);
+      }
+    }
+    const targets = ensureEnemiesForLightning(state, B, 5);
+    assert.ok(targets);
+    assert.equal(targets.length, 5);
+    assert.ok(targets.every(([x, y]) => getCell(state, x, y) === W));
   });
 
   it('CPU(EASY)がランダム性を持ち危険手を避けること', () => {
