@@ -19,6 +19,8 @@ import {
   addScore,
   comboGain,
   ensureEnemiesForLightning,
+  applyLightningPlacements,
+  collectFlipsFromOccupied,
   key,
   setCell,
   getCell,
@@ -471,7 +473,7 @@ import { chooseCpuMove } from './cpu.js';
       await sleep(110);
 
       for (const [x, y] of destroyed) set(x, y, EMPTY);
-      for (const [x, y] of destroyed) set(x, y, player);
+      const { flipped } = applyLightningPlacements(state, player, destroyed);
 
       const { gain: placementGain, cells: placementCells } = applyBonusPlacementScore(state, player);
       if (placementGain > 0) spawnBonusPlacementAnim(placementCells, placementGain);
@@ -503,40 +505,6 @@ import { chooseCpuMove } from './cpu.js';
   }
 
   // ===== moves =====
-  function collectFlipsFromOccupied(x, y, player) {
-    const opp = opponent(player);
-    const flips = [];
-
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-      [1, 1],
-      [1, -1],
-      [-1, 1],
-      [-1, -1],
-    ]) {
-      let cx = x + dx,
-        cy = y + dy;
-      const line = [];
-      while (inBounds(cx, cy)) {
-        const s = get(cx, cy);
-        if (s === opp) {
-          line.push([cx, cy]);
-          cx += dx;
-          cy += dy;
-          continue;
-        }
-        if (s === player) {
-          if (line.length) flips.push(...line);
-        }
-        break;
-      }
-    }
-    return flips;
-  }
-
   async function applyReverseAt(x, y) {
     if (state.busy || state.gameOver || state.awaitingChoice) return;
     if (!state.reverseMode) return;
@@ -560,7 +528,7 @@ import { chooseCpuMove } from './cpu.js';
     try {
       decReverseItem(state, player);
       set(x, y, player);
-      const flips = collectFlipsFromOccupied(x, y, player);
+      const flips = collectFlipsFromOccupied(state, x, y, player);
       const flipCount = flips.length;
       for (const [fx, fy] of flips) set(fx, fy, player);
       state.lastMove = { x, y, player, flips: flips.length, reverse: true };

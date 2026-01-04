@@ -131,6 +131,32 @@ export function computeLegal(state) {
   return state.legal;
 }
 
+// 置かれている自駒から敵駒を挟み込んだときの反転対象を取得する
+export function collectFlipsFromOccupied(state, x, y, player) {
+  const opp = opponent(player);
+  const flips = [];
+
+  for (const [dx, dy] of dirs8) {
+    let cx = x + dx,
+      cy = y + dy;
+    const line = [];
+    while (inBounds(cx, cy)) {
+      const s = getCell(state, cx, cy);
+      if (s === opp) {
+        line.push([cx, cy]);
+        cx += dx;
+        cy += dy;
+        continue;
+      }
+      if (s === player) {
+        if (line.length) flips.push(...line);
+      }
+      break;
+    }
+  }
+  return flips;
+}
+
 export function isBothNoMoves(state) {
   if (state.legal.size !== 0) return false;
   const oppLegal = computeLegalFor(state, opponent(state.turn));
@@ -501,25 +527,53 @@ export function resetGame(state) {
   resetBoardKeepScoreAndItems(state);
 }
 
+// 稲妻用：空きマスを優先し、足りなければ敵駒を対象にする
 export function ensureEnemiesForLightning(state, player, desiredCount) {
   const enemy = opponent(player);
-  const enemyCells = [];
   const emptyCells = [];
+  const enemyCells = [];
 
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const cell = getCell(state, x, y);
-    if (cell === enemy) enemyCells.push([x, y]);
-    else if (cell === EMPTY) emptyCells.push([x, y]);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const cell = getCell(state, x, y);
+      if (cell === EMPTY) emptyCells.push([x, y]);
+      else if (cell === enemy) enemyCells.push([x, y]);
+    }
   }
 
-  if (enemyCells.length === 0 && emptyCells.length === 0) return null;
+  if (enemyCells.length === 0 && emptyCells.length === 0) return [];
 
   shuffle(emptyCells);
-  while (enemyCells.length < desiredCount && emptyCells.length > 0) {
-    const pos = emptyCells.pop();
-    setCell(state, pos[0], pos[1], enemy);
-    enemyCells.push(pos);
+  shuffle(enemyCells);
+
+  const targets = [];
+
+  while (targets.length < desiredCount && emptyCells.length > 0) {
+    targets.push(emptyCells.pop());
   }
 
-  return enemyCells;
+  while (targets.length < desiredCount && enemyCells.length > 0) {
+    targets.push(enemyCells.pop());
+  }
+
+  return targets;
+}
+
+export function applyLightningPlacements(state, player, targets) {
+  if (!targets || targets.length === 0) return { flipped: 0 };
+
+  for (const [x, y] of targets) setCell(state, x, y, player);
+
+  const flipSet = new Set();
+  for (const [x, y] of targets) {
+    const flips = collectFlipsFromOccupied(state, x, y, player);
+    for (const [fx, fy] of flips) flipSet.add(key(fx, fy));
+  }
+
+  for (const k of flipSet) {
+    const [fx, fy] = k.split(',').map(Number);
+    setCell(state, fx, fy, player);
+  }
+
+  return { flipped: flipSet.size };
 }
